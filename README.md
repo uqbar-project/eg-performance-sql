@@ -47,6 +47,18 @@ camiones (1M registros) - FK 1:1 con vehículos
 - **pgAdmin** para administración visual
 - **Faker.js** para datos realistas
 
+### 📡 Configuración de Puertos
+
+| Servicio | Host | Container | Descripción |
+|-----------|-------|------------|-------------|
+| PostgreSQL | `5442` | `5432` | Base de datos principal |
+| pgAdmin | `5055` | `80` | Interfaz web de administración |
+
+### 🌐 URLs de Acceso
+
+- **pgAdmin**: `http://localhost:5055`
+- **PostgreSQL**: `localhost:5442`
+
 ## 📁 Estructura del Proyecto
 
 ```
@@ -78,6 +90,10 @@ eg-performance-sql/
 ```bash
 docker-compose up -d
 ```
+
+**📡 Puertos Configurados:**
+- **PostgreSQL**: `localhost:5442` (host) → `5432` (container)
+- **pgAdmin**: `http://localhost:5055` (host) → `80` (container)
 
 ### 2. Insertar Datos de Prueba (Opcional)
 ```bash
@@ -115,7 +131,25 @@ pnpm run index-comparison
 docker exec -it performance_sql psql -U postgres -d performance_db -f /docker-entrypoint-initdb.d/10-reset-data.sql
 ```
 
-### 📊 Comparación de Índices
+### � Conexión Directa a PostgreSQL
+
+**Desde tu máquina local (host):**
+```bash
+# Usando psql
+psql -h localhost -p 5442 -U postgres -d performance_db
+
+# Usando Docker
+docker exec -it performance_sql psql -U postgres -d performance_db
+```
+
+**Configuración para clientes SQL:**
+- **Host**: `localhost`
+- **Port**: `5442`
+- **User**: `postgres`
+- **Password**: `postgres`
+- **Database**: `performance_db`
+
+### � Comparación de Índices
 
 El script `index-comparison` realiza un análisis completo del impacto de los índices:
 
@@ -200,6 +234,7 @@ SET enable_nestloop = on;
 2. **Error de conexión**
    - Verificar que PostgreSQL esté listo: `docker logs performance_sql`
    - Esperar 10-15 segundos después de iniciar
+   - Usar puerto correcto: `localhost:5442`
 
 3. **Performance lenta**
    - Aumentar `work_mem`: `SET work_mem = '512MB'`
@@ -215,7 +250,10 @@ SET enable_nestloop = on;
 # Logs del contenedor PostgreSQL
 docker logs performance_sql
 
-# Conexión directa a PostgreSQL
+# Conexión directa a PostgreSQL (desde host)
+psql -h localhost -p 5442 -U postgres -d performance_db
+
+# Conexión directa a PostgreSQL (desde container)
 docker exec -it performance_sql psql -U postgres -d performance_db
 
 # Verificar tablas
@@ -224,6 +262,14 @@ docker exec -it performance_sql psql -U postgres -d performance_db
 # Verificar índices
 \di
 ```
+
+### 🌐 Acceso a pgAdmin
+
+**URL**: `http://localhost:5055`
+- **Email**: `admin@performance.com`
+- **Password**: `admin`
+- **Server**: `localhost:5442`
+- **Database**: `performance_db`
 
 ## 📚 Referencias
 

@@ -38,7 +38,7 @@ export interface DataConfig {
 export function createClient(): Client {
   return new Client({
     host: 'localhost',
-    port: 5432,
+    port: 5442,  // Puerto 5442 en host local
     user: 'postgres',
     password: 'postgres',
     database: 'performance_db'
