@@ -26,9 +26,106 @@ interface PerformanceAnalysisReport {
   }
 }
 
+interface TestQuery {
+  name: string
+  setup: string
+  query: string
+}
+
 // Utilidad flatMap para arrays
 function flatMap<T, U>(array: T[], mapper: (item: T) => U[]): U[] {
   return array.reduce<U[]>((acc, item) => acc.concat(mapper(item)), [])
+}
+
+function createTestQueries(): TestQuery[] {
+  return [
+    {
+      name: 'Merge Join - Vehículos y Autos Ordenados',
+      setup: 'SET enable_hashjoin = off; SET enable_nestloop = off; SET enable_mergejoin = on; SET work_mem = \'256MB\';',
+      query: `
+        SELECT 
+          v.id,
+          v.patente,
+          v.fecha_patentamiento,
+          v.chofer_designado,
+          v.desgaste,
+          v.kilometraje,
+          a.vencimiento_matafuego
+        FROM vehiculos v
+        INNER JOIN autos a ON v.id = a.vehiculo_id
+        WHERE v.fecha_patentamiento BETWEEN '2020-01-01' AND '2023-12-31'
+          AND v.desgaste > 50
+        ORDER BY v.fecha_patentamiento, a.vencimiento_matafuego
+        LIMIT 10000
+      `
+    },
+    {
+      name: 'Nested Loop Join - Búsqueda Selectiva por Patente',
+      setup: 'SET enable_hashjoin = off; SET enable_mergejoin = off; SET enable_nestloop = on; SET work_mem = \'256MB\';',
+      query: `
+        SELECT 
+          v.id,
+          v.patente,
+          v.fecha_patentamiento,
+          v.chofer_designado,
+          v.desgaste,
+          v.kilometraje,
+          a.vencimiento_matafuego
+        FROM vehiculos v
+        INNER JOIN autos a ON v.id = a.vehiculo_id
+        WHERE v.patente = 'ABC123'
+          AND v.desgaste > 75
+      `
+    },
+    {
+      name: 'Hash Join - Agregación Grande por Chofer',
+      setup: 'SET enable_mergejoin = off; SET enable_nestloop = off; SET enable_hashjoin = on; SET work_mem = \'256MB\';',
+      query: `
+        SELECT 
+          v.chofer_designado,
+          COUNT(*) as total_vehiculos,
+          AVG(v.desgaste) as desgaste_promedio,
+          AVG(v.kilometraje) as kilometraje_promedio,
+          COUNT(a.vehiculo_id) as total_autos
+        FROM vehiculos v
+        LEFT JOIN autos a ON v.id = a.vehiculo_id
+        WHERE v.desgaste > 50
+          AND v.kilometraje > 10000
+        GROUP BY v.chofer_designado
+        HAVING COUNT(*) > 5
+        ORDER BY total_vehiculos DESC
+        LIMIT 1000
+      `
+    },
+    {
+      name: 'PostgreSQL Auto - Query Compleja Múltiples Tablas',
+      setup: 'SET enable_hashjoin = on; SET enable_mergejoin = on; SET enable_nestloop = on; SET work_mem = \'256MB\';',
+      query: `
+        SELECT 
+          v.chofer_designado,
+          CASE 
+            WHEN a.vehiculo_id IS NOT NULL THEN 'Auto'
+            WHEN m.vehiculo_id IS NOT NULL THEN 'Moto'
+            WHEN c.vehiculo_id IS NOT NULL THEN 'Camion'
+            ELSE 'Desconocido'
+          END as tipo_vehiculo,
+          COUNT(*) as total_vehiculos,
+          AVG(v.desgaste) as desgaste_promedio,
+          AVG(v.kilometraje) as kilometraje_promedio,
+          MIN(v.fecha_patentamiento) as patentamiento_mas_antiguo
+        FROM vehiculos v
+        LEFT JOIN autos a ON v.id = a.vehiculo_id
+        LEFT JOIN motos m ON v.id = m.vehiculo_id
+        LEFT JOIN camiones c ON v.id = c.vehiculo_id
+        WHERE v.fecha_patentamiento >= '2020-01-01'
+          AND v.desgaste BETWEEN 30 AND 80
+        GROUP BY v.chofer_designado, tipo_vehiculo
+        HAVING COUNT(*) > 3
+        ORDER BY total_vehiculos DESC, tipo_vehiculo
+        LIMIT 500
+      `
+    }
+  ]
 }
 
 const postgresConnection = new Client({
@@ -86,79 +183,13 @@ function extractBufferUsageFromPlan(plan: any): QueryPerformanceMetrics['bufferU
   }
 }
 
-function createTestQueries() {
-  return [
-    {
-      name: 'Merge Join - Datos Ordenados',
-      setup: 'SET enable_hashjoin = off; SET enable_nestloop = off;',
-      query: `
-        SELECT c.id, c.nombre, COUNT(p.id) as total_pedidos
-        FROM clientes c
-        INNER JOIN pedidos p ON c.id = p.cliente_id
-        WHERE c.id BETWEEN 1 AND 100000
-        GROUP BY c.id, c.nombre
-        ORDER BY c.id
-        LIMIT 1000
-      `
-    },
-    {
-      name: 'Nested Loop Join - Filtro Selectivo',
-      setup: 'SET enable_hashjoin = off; SET enable_mergejoin = off;',
-      query: `
-        SELECT c.id, c.nombre, p.id as pedido_id, p.monto_total
-        FROM clientes c
-        INNER JOIN pedidos p ON c.id = p.cliente_id
-        WHERE c.id = 12345
-          AND p.fecha >= '2023-01-01'
-        ORDER BY p.fecha DESC
-        LIMIT 100
-      `
-    },
-    {
-      name: 'Hash Join - Agregación Grande',
-      setup: 'SET enable_mergejoin = off; SET enable_nestloop = off;',
-      query: `
-        SELECT 
-          c.id, c.nombre,
-          COUNT(p.id) as total_pedidos,
-          AVG(p.monto_total) as promedio_monto,
-          SUM(p.monto_total) as total_monto
-        FROM clientes c
-        INNER JOIN pedidos p ON c.id = p.cliente_id
-        WHERE c.id BETWEEN 100000 AND 500000
-          AND p.fecha >= '2022-01-01'
-        GROUP BY c.id, c.nombre
-        HAVING COUNT(p.id) > 5
-        ORDER BY total_monto DESC
-        LIMIT 1000
-      `
-    },
-    {
-      name: 'PostgreSQL Auto - Query Compleja',
-      setup: 'SET enable_hashjoin = on; SET enable_mergejoin = on; SET enable_nestloop = on;',
-      query: `
-        SELECT 
-          c.id, c.nombre, c.email,
-          p.id as pedido_id, p.fecha, p.monto_total,
-          ROW_NUMBER() OVER (PARTITION BY c.id ORDER BY p.fecha DESC) as pedido_rank
-        FROM clientes c
-        INNER JOIN pedidos p ON c.id = p.cliente_id
-        WHERE c.id BETWEEN 50000 AND 150000
-          AND p.monto_total > 100
-        ORDER BY c.id, p.fecha DESC
-        LIMIT 1000
-      `
-    }
-  ]
-}
-
 async function executeAllPerformanceTests(): Promise<QueryPerformanceMetrics[]> {
   const testQueries = createTestQueries()
   
   const performanceResults = await Promise.all(
-    testQueries.map(async ({ name, setup, query }) => {
-      await postgresConnection.query(setup)
-      const result = await executeQueryWithPerformanceAnalysis(name, query)
+    testQueries.map(async (testQuery: TestQuery) => {
+      await postgresConnection.query(testQuery.setup)
+      const result = await executeQueryWithPerformanceAnalysis(testQuery.name, testQuery.query)
       
       logQueryPerformance(result)
       return result
@@ -174,105 +205,83 @@ function logQueryPerformance(result: QueryPerformanceMetrics): void {
   console.log(`💾 Buffers - Hit: ${result.bufferUsage?.sharedBlocksHit}, Read: ${result.bufferUsage?.sharedBlocksRead}`)
 }
 
-function calculatePerformanceSummary(queryResults: QueryPerformanceMetrics[]): PerformanceAnalysisReport['performanceSummary'] {
-  const executionTimes = queryResults.map(result => result.executionTimeMs)
+function generatePerformanceSummary(results: QueryPerformanceMetrics[]): PerformanceAnalysisReport['performanceSummary'] {
+  const executionTimes = results.map(result => result.executionTimeMs)
+  const fastestQuery = results.reduce((prev, current) => 
+    prev.executionTimeMs < current.executionTimeMs ? prev : current
+  )
+  const slowestQuery = results.reduce((prev, current) => 
+    prev.executionTimeMs > current.executionTimeMs ? prev : current
+  )
   const averageExecutionTime = executionTimes.reduce((sum, time) => sum + time, 0) / executionTimes.length
   
-  const fastestQuery = queryResults.reduce((fastest, current) => 
-    current.executionTimeMs < fastest.executionTimeMs ? current : fastest
-  ).queryName
-  
-  const slowestQuery = queryResults.reduce((slowest, current) => 
-    current.executionTimeMs > slowest.executionTimeMs ? current : slowest
-  ).queryName
-  
-  return {
-    fastestQuery,
-    slowestQuery,
-    averageExecutionTime,
-    optimalJoinType: determineOptimalJoinType(queryResults)
-  }
-}
-
-function determineOptimalJoinType(queryResults: QueryPerformanceMetrics[]): string {
-  const joinTypePerformance = queryResults
-    .filter(result => result.joinType)
-    .reduce((acc, result) => {
-      const joinType = result.joinType!
-      if (!acc[joinType]) {
-        acc[joinType] = []
-      }
-      acc[joinType].push(result.executionTimeMs)
-      return acc
-    }, {} as { [key: string]: number[] })
-  
-  return Object.entries(joinTypePerformance)
-    .map(([joinType, times]) => ({
-      joinType,
-      averageTime: times.reduce((sum, time) => sum + time, 0) / times.length
-    }))
-    .reduce((best, current) => 
-      current.averageTime < best.averageTime ? current : best
-    , { joinType: 'N/A', averageTime: Infinity })
-    .joinType
-}
-
-function generatePerformanceReport(queryResults: QueryPerformanceMetrics[]): PerformanceAnalysisReport {
-  return {
-    analysisTimestamp: new Date().toISOString(),
-    queryResults,
-    performanceSummary: calculatePerformanceSummary(queryResults)
-  }
-}
-
-function printQueryResults(queryResults: QueryPerformanceMetrics[]): void {
-  queryResults.forEach((queryResult, index) => {
-    console.log(`\n${index + 1}. ${queryResult.queryName}`)
-    console.log(`   ⏱️  Tiempo: ${queryResult.executionTimeMs.toFixed(2)}ms`)
-    console.log(`   📈 Costo: ${queryResult.totalCost.toFixed(2)}`)
-    console.log(`   🔗 JOIN: ${queryResult.joinType || 'N/A'}`)
-    console.log(`   📁 Rows: ${queryResult.actualRowsProcessed}`)
-    if (queryResult.bufferUsage) {
-      const totalTempBlocks = queryResult.bufferUsage.tempBlocksRead + queryResult.bufferUsage.tempBlocksWritten
-      console.log(`   💾 Buffers - Hit: ${queryResult.bufferUsage.sharedBlocksHit}, Read: ${queryResult.bufferUsage.sharedBlocksRead}, Temp: ${totalTempBlocks}`)
+  const joinTypeFrequency = results.reduce((acc, result) => {
+    if (result.joinType) {
+      acc[result.joinType] = (acc[result.joinType] || 0) + 1
     }
-  })
-}
-
-function printPerformanceSummary(summary: PerformanceAnalysisReport['performanceSummary']): void {
-  console.log('\n📋 RESUMEN:')
-  console.log(`   🏆 Más rápido: ${summary.fastestQuery}`)
-  console.log(`   🐌 Más lento: ${summary.slowestQuery}`)
-  console.log(`   ⏱️  Tiempo promedio: ${summary.averageExecutionTime.toFixed(2)}ms`)
-  console.log(`   🔗 Mejor tipo de JOIN: ${summary.optimalJoinType}`)
-}
-
-function printCompleteReport(report: PerformanceAnalysisReport): void {
-  console.log('\n' + '='.repeat(80))
-  console.log('📈 REPORTE DE PERFORMANCE DE JOINS')
-  console.log('='.repeat(80))
-  console.log(`🕐 Timestamp: ${report.analysisTimestamp}`)
+    return acc
+  }, {} as Record<string, number>)
   
-  console.log('\n📊 RESULTADOS POR QUERY:')
-  printQueryResults(report.queryResults)
+  const optimalJoinType = Object.entries(joinTypeFrequency)
+    .sort(([, a], [, b]) => b - a)[0]?.[0] || 'Unknown'
   
-  printPerformanceSummary(report.performanceSummary)
-  
-  console.log('\n' + '='.repeat(80))
+  return {
+    fastestQuery: fastestQuery.queryName,
+    slowestQuery: slowestQuery.queryName,
+    averageExecutionTime,
+    optimalJoinType
+  }
 }
 
 async function runPerformanceAnalysis(): Promise<void> {
   try {
     await postgresConnection.connect()
-    console.log('🚀 Iniciando análisis de performance de JOINs')
+    console.log('🚗 Iniciando análisis de performance para vehículos...')
     
     const queryResults = await executeAllPerformanceTests()
-    const performanceReport = generatePerformanceReport(queryResults)
+    const performanceSummary = generatePerformanceSummary(queryResults)
     
-    printCompleteReport(performanceReport)
+    const analysisReport: PerformanceAnalysisReport = {
+      analysisTimestamp: new Date().toISOString(),
+      queryResults,
+      performanceSummary
+    }
+    
+    console.log('\n� REPORTE DE ANÁLISIS DE PERFORMANCE')
+    console.log('=' .repeat(50))
+    console.log(`� Fecha: ${analysisReport.analysisTimestamp}`)
+    console.log(`⚡ Query más rápida: ${performanceSummary.fastestQuery}`)
+    console.log(`🐌 Query más lenta: ${performanceSummary.slowestQuery}`)
+    console.log(`⏱️ Tiempo promedio: ${performanceSummary.averageExecutionTime.toFixed(2)}ms`)
+    console.log(`🔗 JOIN óptimo: ${performanceSummary.optimalJoinType}`)
+    
+    console.log('\n� DETALLE DE QUERIES:')
+    console.log('-'.repeat(50))
+    
+    queryResults.forEach(result => {
+      console.log(`\n🔍 ${result.queryName}`)
+      console.log(`   ⏱️ Ejecución: ${result.executionTimeMs.toFixed(2)}ms`)
+      console.log(`   📋 Planificación: ${result.planningTimeMs.toFixed(2)}ms`)
+      console.log(`   💰 Costo: ${result.totalCost.toFixed(2)}`)
+      console.log(`   📊 Filas: ${result.actualRowsProcessed}`)
+      
+      if (result.joinType) {
+        console.log(`   🔗 JOIN: ${result.joinType}`)
+      }
+      
+      if (result.bufferUsage) {
+        const hitRate = result.bufferUsage.sharedBlocksHit > 0 
+          ? (result.bufferUsage.sharedBlocksHit / (result.bufferUsage.sharedBlocksHit + result.bufferUsage.sharedBlocksRead) * 100).toFixed(2)
+          : '0.00'
+        console.log(`   🎯 Cache Hit Rate: ${hitRate}%`)
+      }
+    })
+    
+    console.log('\n✅ Análisis completado exitosamente')
     
   } catch (error) {
-    console.error('❌ Error en análisis:', error)
+    console.error('❌ Error en análisis de performance:', error)
+    throw error
   } finally {
     await postgresConnection.end()
   }

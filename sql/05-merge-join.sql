@@ -1,43 +1,80 @@
 -- FORZAR MERGE JOIN
--- El Merge Join funciona mejor con datos ordenados y cuando ambos datasets son grandes
+-- Queries para forzar Merge Join con vehículos
+-- Merge Join es óptimo para datos ordenados y grandes datasets
 
--- Configuración para favorecer Merge Join
-SET enable_hashjoin = off
-SET enable_nestloop = off
-SET work_mem = '256MB'
+-- Configuración para forzar Merge Join
+SET enable_hashjoin = off;
+SET enable_nestloop = off;
+SET enable_mergejoin = on;
+SET work_mem = '256MB';
 
--- Query que fuerza Merge Join
--- Usamos ORDER BY para asegurar que los datos estén ordenados
+-- Query 1: Merge Join entre vehículos y autos ordenados por fecha
 EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)
 SELECT 
-    c.id,
-    c.nombre,
-    c.email,
-    p.id as pedido_id,
-    p.fecha,
-    p.monto_total
-FROM clientes c
-INNER JOIN pedidos p ON c.id = p.cliente_id
-WHERE c.id BETWEEN 1 AND 100000
-ORDER BY c.id, p.fecha
-LIMIT 1000
+    v.id,
+    v.patente,
+    v.fecha_patentamiento,
+    v.chofer_designado,
+    v.desgaste,
+    v.kilometraje,
+    a.vencimiento_matafuego
+FROM vehiculos v
+INNER JOIN autos a ON v.id = a.vehiculo_id
+WHERE v.fecha_patentamiento BETWEEN '2020-01-01' AND '2023-12-31'
+  AND v.desgaste > 50
+ORDER BY v.fecha_patentamento, a.vencimiento_matafuego
+LIMIT 10000;
 
--- Alternativa: Merge Join con datos ordenados previamente
+-- Query 2: Merge Join con vehículos y motos ordenados por kilometraje
 EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)
-WITH clientes_ordenados AS (
-    SELECT * FROM clientes ORDER BY id
-),
-pedidos_ordenados AS (
-    SELECT * FROM pedidos ORDER BY cliente_id
-)
 SELECT 
-    c.id,
-    c.nombre,
-    c.email,
-    p.id as pedido_id,
-    p.fecha,
-    p.monto_total
-FROM clientes_ordenados c
-INNER JOIN pedidos_ordenados p ON c.id = p.cliente_id
-WHERE c.id BETWEEN 1 AND 100000
-LIMIT 1000
+    v.id,
+    v.patente,
+    v.kilometraje,
+    v.chofer_designado,
+    m.cilindrada,
+    m.seguro_terceros
+FROM vehiculos v
+INNER JOIN motos m ON v.id = m.vehiculo_id
+WHERE v.kilometraje BETWEEN 50000 AND 200000
+  AND m.cilindrada > 500
+ORDER BY v.kilometraje DESC, m.cilindrada
+LIMIT 8000;
+
+-- Query 3: Merge Join complejo con múltiples tablas ordenadas
+EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)
+SELECT 
+    v.id,
+    v.patente,
+    v.fecha_patentamiento,
+    v.chofer_designado,
+    v.desgaste,
+    v.kilometraje,
+    COALESCE(a.vencimiento_matafuego, NULL) as vencimiento_matafuego,
+    COALESCE(m.cilindrada, NULL) as cilindrada,
+    COALESCE(c.cubiertas_auxilio, NULL) as cubiertas_auxilio
+FROM vehiculos v
+LEFT JOIN autos a ON v.id = a.vehiculo_id
+LEFT JOIN motos m ON v.id = m.vehiculo_id  
+LEFT JOIN camiones c ON v.id = c.vehiculo_id
+WHERE v.fecha_patentamiento >= '2018-01-01'
+  AND v.kilometraje <= 300000
+ORDER BY v.fecha_patentamiento, v.kilometraje
+LIMIT 15000;
+
+-- Query 4: Merge Join para análisis de desgaste por fecha
+EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)
+SELECT 
+    EXTRACT(YEAR FROM v.fecha_patentamiento) as anio_patentamiento,
+    AVG(v.desgaste) as desgaste_promedio,
+    COUNT(*) as total_vehiculos,
+    AVG(v.kilometraje) as kilometraje_promedio
+FROM vehiculos v
+INNER JOIN autos a ON v.id = a.vehiculo_id
+WHERE v.fecha_patentamiento >= '2015-01-01'
+GROUP BY EXTRACT(YEAR FROM v.fecha_patentamiento)
+ORDER BY anio_patentamiento;
+
+-- Resetear configuración
+SET enable_hashjoin = on;
+SET enable_nestloop = on;

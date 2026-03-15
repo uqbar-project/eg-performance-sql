@@ -1,23 +1,36 @@
--- Creación de tablas para análisis de performance
+-- Creación de tablas para análisis de performance de vehículos
 -- Este script se ejecuta automáticamente al iniciar el contenedor
+-- NOTA: Índices se crean después de insertar datos para optimizar performance
 
--- Tabla Clientes
-CREATE TABLE IF NOT EXISTS clientes (
+-- Tabla principal de Vehículos
+CREATE TABLE IF NOT EXISTS vehiculos (
     id SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL,
-    direccion VARCHAR(200),
-    email VARCHAR(100) UNIQUE NOT NULL
+    patente VARCHAR(10) UNIQUE NOT NULL,
+    fecha_patentamiento DATE NOT NULL,
+    chofer_designado VARCHAR(100) NOT NULL,
+    desgaste INTEGER CHECK (desgaste >= 0 AND desgaste <= 100),
+    kilometraje INTEGER NOT NULL
 );
 
--- Tabla Pedidos
-CREATE TABLE IF NOT EXISTS pedidos (
-    id SERIAL PRIMARY KEY,
-    fecha TIMESTAMP NOT NULL,
-    cliente_id INTEGER REFERENCES clientes(id),
-    monto_total DECIMAL(10,2) NOT NULL
+-- Tabla de Autos (relación 1:1 con vehículos)
+CREATE TABLE IF NOT EXISTS autos (
+    vehiculo_id INTEGER PRIMARY KEY REFERENCES vehiculos(id) ON DELETE CASCADE,
+    vencimiento_matafuego DATE NOT NULL
 );
 
--- Índices para optimizar queries
-CREATE INDEX IF NOT EXISTS idx_clientes_email ON clientes(email);
-CREATE INDEX IF NOT EXISTS idx_pedidos_cliente_id ON pedidos(cliente_id);
-CREATE INDEX IF NOT EXISTS idx_pedidos_fecha ON pedidos(fecha);
+-- Tabla de Motos (relación 1:1 con vehículos)
+CREATE TABLE IF NOT EXISTS motos (
+    vehiculo_id INTEGER PRIMARY KEY REFERENCES vehiculos(id) ON DELETE CASCADE,
+    cilindrada INTEGER NOT NULL,
+    seguro_terceros BOOLEAN NOT NULL
+);
+
+-- Tabla de Camiones (relación 1:1 con vehículos)
+CREATE TABLE IF NOT EXISTS camiones (
+    vehiculo_id INTEGER PRIMARY KEY REFERENCES vehiculos(id) ON DELETE CASCADE,
+    cubiertas_auxilio INTEGER NOT NULL,
+    limite_km_diario INTEGER NOT NULL
+);
+
+-- Índices básicos (solo PKs creados arriba)
+-- Los índices de performance se crearán en 03-create-indexes-after-data.sql

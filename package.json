@@ -9,6 +9,7 @@
     "insert-data": "tsx scripts/insert-data.ts",
     "insert-data-small": "tsx scripts/insert-data-small.ts",
     "performance-analysis": "tsx scripts/performance-analyzer.ts",
+    "index-comparison": "tsx scripts/index-performance-comparator.ts",
     "dev": "tsx --watch src/index.ts",
     "lint": "eslint src/**/*.ts scripts/**/*.ts",
     "lint:fix": "eslint src/**/*.ts scripts/**/*.ts --fix"
