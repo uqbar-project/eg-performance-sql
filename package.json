@@ -1,0 +1,38 @@
+{
+  "name": "eg-performance-sql",
+  "version": "1.0.0",
+  "description": "Análisis de performance de JOINs en PostgreSQL",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "tsx src/index.ts",
+    "insert-data": "tsx scripts/insert-data.ts",
+    "insert-data-small": "tsx scripts/insert-data-small.ts",
+    "performance-analysis": "tsx scripts/performance-analyzer.ts",
+    "dev": "tsx --watch src/index.ts",
+    "lint": "eslint src/**/*.ts scripts/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts scripts/**/*.ts --fix"
+  },
+  "dependencies": {
+    "pg": "8.11.3",
+    "faker": "5.5.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.0.0",
+    "@types/node": "20.8.0",
+    "@types/pg": "8.10.7",
+    "@types/faker": "5.5.9",
+    "@typescript-eslint/eslint-plugin": "7.0.0",
+    "@typescript-eslint/parser": "7.0.0",
+    "eslint": "8.50.0",
+    "typescript": "5.2.2",
+    "tsx": "4.6.0"
+  },
+  "keywords": ["postgresql", "performance", "sql", "join"],
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "author": "PHM",
+  "license": "MIT"
+}
