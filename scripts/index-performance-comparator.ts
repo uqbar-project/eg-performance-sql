@@ -82,43 +82,6 @@ function extractBufferUsageFromPlan(plan: any): PerformanceMetrics['bufferUsage'
   }
 }
 
-async function dropAllIndexes(): Promise<void> {
-  console.log('\n🗑️ Eliminando todos los índices de performance...')
-  
-  const indexesToDrop = [
-    'idx_vehiculos_patente',
-    'idx_vehiculos_fecha_patentamiento',
-    'idx_vehiculos_chofer_designado',
-    'idx_vehiculos_desgaste',
-    'idx_vehiculos_kilometraje',
-    'idx_vehiculos_fecha_desgaste',
-    'idx_vehiculos_chofer_kilometraje',
-    'idx_vehiculos_patente_desgaste',
-    'idx_autos_vencimiento_matafuego',
-    'idx_motos_cilindrada',
-    'idx_motos_seguro_terceros',
-    'idx_camiones_cubiertas_auxilio',
-    'idx_camiones_limite_km_diario',
-    'mv_vehiculos_estadisticas',
-    'idx_mv_vehiculos_estadisticas_id',
-    'idx_mv_vehiculos_estadisticas_tipo',
-    'idx_mv_vehiculos_estadisticas_chofer'
-  ]
-  
-  for (const indexName of indexesToDrop) {
-    try {
-      if (indexName.startsWith('mv_')) {
-        await postgresConnection.query(`DROP MATERIALIZED VIEW IF EXISTS ${indexName}`)
-      } else {
-        await postgresConnection.query(`DROP INDEX IF EXISTS ${indexName}`)
-      }
-      console.log(`   ✅ Eliminado: ${indexName}`)
-    } catch (error) {
-      console.log(`   ⚠️ No se pudo eliminar: ${indexName}`)
-    }
-  }
-}
-
 async function recreateAllIndexes(): Promise<void> {
   console.log('\n🔧 Recreando todos los índices de performance...')
   
@@ -184,6 +147,43 @@ async function recreateAllIndexes(): Promise<void> {
   await postgresConnection.query('ANALYZE')
   
   console.log('   ✅ Todos los índices recreados exitosamente')
+}
+
+async function dropAllIndexes(): Promise<void> {
+  console.log('\n🗑️ Eliminando todos los índices de performance...')
+  
+  const indexesToDrop = [
+    'idx_vehiculos_patente',
+    'idx_vehiculos_fecha_patentamiento',
+    'idx_vehiculos_chofer_designado',
+    'idx_vehiculos_desgaste',
+    'idx_vehiculos_kilometraje',
+    'idx_vehiculos_fecha_desgaste',
+    'idx_vehiculos_chofer_kilometraje',
+    'idx_vehiculos_patente_desgaste',
+    'idx_autos_vencimiento_matafuego',
+    'idx_motos_cilindrada',
+    'idx_motos_seguro_terceros',
+    'idx_camiones_cubiertas_auxilio',
+    'idx_camiones_limite_km_diario',
+    'mv_vehiculos_estadisticas',
+    'idx_mv_vehiculos_estadisticas_id',
+    'idx_mv_vehiculos_estadisticas_tipo',
+    'idx_mv_vehiculos_estadisticas_chofer'
+  ]
+  
+  for (const indexName of indexesToDrop) {
+    try {
+      if (indexName.startsWith('mv_')) {
+        await postgresConnection.query(`DROP MATERIALIZED VIEW IF EXISTS ${indexName}`)
+      } else {
+        await postgresConnection.query(`DROP INDEX IF EXISTS ${indexName}`)
+      }
+      console.log(`   ✅ Eliminado: ${indexName}`)
+    } catch (error) {
+      console.log(`   ⚠️ No se pudo eliminar: ${indexName}`)
+    }
+  }
 }
 
 function getTestQueries(): Array<{name: string, query: string}> {

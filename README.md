@@ -56,11 +56,11 @@ eg-performance-sql/
 │   ├── 02-constraints.sql            # Constraints y validaciones
 │   ├── 03-performance-optimizations.sql # Vacío (compatibilidad)
 │   ├── 05-merge-join.sql             # Queries para Merge Join
-│   ├── 06-reset-data.sql             # Limpieza de datos
-│   ├── 07-nested-loop-join.sql       # Queries para Nested Loop Join
-│   ├── 08-hash-join.sql              # Queries para Hash Join
-│   ├── 09-comparison-queries.sql     # Comparación directa de JOINs
-│   └── 10-performance-report.sql     # Reporte general de performance
+│   ├── 06-nested-loop-join.sql       # Queries para Nested Loop Join
+│   ├── 07-hash-join.sql              # Queries para Hash Join
+│   ├── 08-comparison-queries.sql     # Comparación directa de JOINs
+│   ├── 09-performance-report.sql     # Reporte general de performance
+│   └── 10-reset-data.sql             # Limpieza de datos
 ├── scripts/
 │   ├── vehicle-data-generator.ts     # Módulo compartido de generación
 │   ├── insert-data.ts                # Dataset completo (10M registros)
@@ -112,7 +112,7 @@ pnpm run index-comparison
 ### 🧹 Limpieza
 ```bash
 # Reset completo de datos
-docker exec -it performance_sql psql -U postgres -d performance_db -f /docker-entrypoint-initdb.d/06-reset-data.sql
+docker exec -it performance_sql psql -U postgres -d performance_db -f /docker-entrypoint-initdb.d/10-reset-data.sql
 ```
 
 ### 📊 Comparación de Índices
